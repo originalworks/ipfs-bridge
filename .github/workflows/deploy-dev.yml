@@ -33,7 +33,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region: us-east-1
-          role-to-assume: ${{ secrets.IAM_WORKFLOW_ROLE }}
+          role-to-assume: ${{ secrets.DEV_IAM_WORKFLOW_ROLE }}
           role-session-name: session-id-${{ github.run_id }}
           role-duration-seconds: 1200
 
@@ -42,7 +42,7 @@ jobs:
         working-directory: infrastructure
 
       - name: "Deploy infrastructure to AWS"
-        run: make deploy-stage
+        run: make deploy-dev
         working-directory: infrastructure
     
     #   - name: Create Sentry release

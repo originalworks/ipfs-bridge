@@ -10,15 +10,17 @@ Parameters:
     Type: String
   StorachaBridgeDBName:
     Type: String
+  IPFSStorageArn:
+    Type: String
+    Default: ""
+  IPFSStorageName:
+    Type: String
+    Default: ""
   DbHost:
     Type: AWS::SSM::Parameter::Value<String>
   DbSecret:
     Type: AWS::SSM::Parameter::Value<String>
   RootDbName:
-    Type: AWS::SSM::Parameter::Value<String>
-  IPFSStorageArn:
-    Type: AWS::SSM::Parameter::Value<String>
-  IPFSStorageName:
     Type: AWS::SSM::Parameter::Value<String>
 
 Conditions:
@@ -50,10 +52,30 @@ Globals:
             - ":SecretString:password}}"
         DB_SYNCRONIZE: "false"
         DB_DATABASE: !Ref StorachaBridgeDBName
-        IPFS_BUCKET_NAME: !Ref IPFSStorageName
+        IPFS_BUCKET_NAME: !If
+          - IsProd
+          - !Sub "{{resolve:ssm:${IPFSStorageName}}}"
+          - ""
         BACKUP_TO_IPFS_NODE: !If [ IsProd, "true", "false" ]
 
 Resources:
+  StorachaBridgeProdS3Policy:
+    Type: AWS::IAM::Policy
+    Condition: IsProd
+    Properties:
+      PolicyName: StorachaBridgeS3Access
+      Roles:
+        - !Ref StorachaBridgeRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - s3:*
+            Effect: Allow
+            Resource:
+              - !Sub "{{resolve:ssm:${IPFSStorageArn}}}"
+              - !Sub "{{resolve:ssm:${IPFSStorageArn}}}/*"
+              
   StorachaBridgeRole:
     Type: AWS::IAM::Role
     Properties:
@@ -71,7 +93,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
-        - PolicyName: StatesExecutionPolicy
+        - PolicyName: BasePolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -85,12 +107,6 @@ Resources:
                 Effect: Allow
                 Resource:
                   - "*"
-              - Action:
-                  - s3:*
-                Effect: Allow
-                Resource:
-                   - !Ref IPFSStorageArn
-                   - !Sub "${IPFSStorageArn}/*"
   Api:
     Type: AWS::Serverless::Api
     Properties:

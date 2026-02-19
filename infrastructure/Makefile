@@ -1,6 +1,5 @@
 CAPABILITIES=CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM
 REGION=us-east-1
-PREFIX=storacha-bridge
 ARTIFACT_NAME=storacha-bridge.zip
 ARTIFACTS_BUCKET=artifacts-ow
 TEMPLATE_FILE=template.yml
@@ -10,7 +9,7 @@ TEMPLATE_FILE=template.yml
 
 deploy-dev: ENVIRONMENT=dev
 deploy-dev: STACK_NAME=dev-storacha-bridge
-deploy-dev: PARAMETERS_FILE=template-config.stage.json
+deploy-dev: PARAMETERS_FILE=template-config.dev.json
 deploy-dev: PARAMETERS=$(shell jq -r '.Parameters | to_entries | map("\(.key)=\(.value)") | join(" ")' $(PARAMETERS_FILE))
 deploy-dev: .deploy
 

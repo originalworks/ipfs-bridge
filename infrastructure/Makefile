@@ -4,7 +4,7 @@ ARTIFACT_NAME=storacha-bridge.zip
 STACK_NAME=storacha-bridge
 TEMPLATE_FILE=template.yml
 
-.deploy:
+.deploy: storacha-bridge.zip
 	sam deploy --template-file $(TEMPLATE_FILE) --stack-name $(ENVIRONMENT)-$(STACK_NAME) --capabilities $(CAPABILITIES) --region $(REGION) --s3-bucket $(ARTIFACTS_BUCKET) --s3-prefix $(ENVIRONMENT) --parameter-overrides $(PARAMETERS) --no-fail-on-empty-changeset
 
 deploy-dev: ENVIRONMENT=dev

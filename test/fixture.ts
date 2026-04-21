@@ -15,7 +15,6 @@ interface AnvilConfig {
 const ANVIL_CONFIG: AnvilConfig = {
   mnemonic: process.env.ANVIL_MNEMONIC,
   rpcUrl: `http://${process.env.ANVIL_HOST}:${process.env.ANVIL_PORT}`,
-  // rpcUrl: `http://127.0.0.1:${process.env.ANVIL_PORT}`,
 };
 
 const createNonceController = async (signer: Signer) => {

@@ -7,14 +7,15 @@ export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-interface GanacheConfig {
+interface AnvilConfig {
   mnemonic: string;
   rpcUrl: string;
 }
 
-const GANACHE_CONFIG: GanacheConfig = {
-  mnemonic: process.env.GANACHE_PRIMARY_MNEMONIC,
-  rpcUrl: `http://${process.env.GANACHE_PRIMARY_HOST}:${process.env.GANACHE_PORT}`,
+const ANVIL_CONFIG: AnvilConfig = {
+  mnemonic: process.env.ANVIL_MNEMONIC,
+  rpcUrl: `http://${process.env.ANVIL_HOST}:${process.env.ANVIL_PORT}`,
+  // rpcUrl: `http://127.0.0.1:${process.env.ANVIL_PORT}`,
 };
 
 const createNonceController = async (signer: Signer) => {
@@ -31,31 +32,24 @@ const createNonceController = async (signer: Signer) => {
   return setNonce;
 };
 
-const createWallets = async (config: GanacheConfig) => {
+const createWallets = async (config: AnvilConfig) => {
   const provider = new ethers.JsonRpcProvider(config.rpcUrl);
-  const wallets: ethers.HDNodeWallet[] = [];
-  const wallet = Wallet.fromPhrase(config.mnemonic, provider);
 
-  for (let i = 0; i < 5; i++) {
-    const hdWallet = wallet.deriveChild(i);
-    await (
-      await wallet.sendTransaction({
-        to: hdWallet.address,
-        value: ethers.parseEther('1'),
-      })
-    ).wait();
-
-    wallets.push(hdWallet);
-  }
-
-  return wallets;
+  return Array.from({ length: 5 }, (_, i) =>
+    ethers.HDNodeWallet.fromPhrase(
+      config.mnemonic,
+      undefined,
+      `m/44'/60'/0'/0/${i}`,
+    ).connect(provider),
+  );
 };
 
 export const testFixture = async () => {
   const [deployer, owen1, owen2, validator, random] =
-    await createWallets(GANACHE_CONFIG);
+    await createWallets(ANVIL_CONFIG);
 
   const setNonce = await createNonceController(deployer);
+
   const dataProvidersWhitelist = await (
     await new Whitelist__factory(deployer).deploy(deployer.address, setNonce())
   ).waitForDeployment();
@@ -100,7 +94,7 @@ export const testFixture = async () => {
     sequencer: sequencerProxy,
     validatorsWhitelist,
     dataProvidersWhitelist,
-    rpcUrl: GANACHE_CONFIG.rpcUrl,
+    rpcUrl: ANVIL_CONFIG.rpcUrl,
     wallets: {
       deployer,
       owen1,

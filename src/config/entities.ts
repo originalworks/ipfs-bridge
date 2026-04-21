@@ -1,3 +1,3 @@
-import { Space } from '../storacha/storacha.entity';
+import { Bucket } from '../filebase/filebase.entity';
 
-export const entities = [Space];
+export const entities = [Bucket];

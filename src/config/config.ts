@@ -5,10 +5,6 @@ export interface IConfig {
   SECRETS_PATH: string;
   IPFS_BUCKET_NAME: string;
   BACKUP_TO_IPFS_NODE: boolean;
-  // LOCAL ONLY
-  // LOCAL_STORACHA_KEY
-  // LOCAL_OWEN_PROOF
-  // LOCAL_VALIDATOR_PROOF
 }
 
 export const config = (): IConfig => ({

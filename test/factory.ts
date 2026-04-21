@@ -1,14 +1,11 @@
 import factory from 'factory-girl';
 import { DataSource } from 'typeorm';
-import { Space } from '../src/storacha/storacha.entity';
+import { Bucket } from '../src/filebase/filebase.entity';
 import { ethers } from 'ethers';
 
 export type Factory = typeof factory;
 
 export let factoryCached: Factory = null;
-
-export const randomDID = () =>
-  `did:key:${factory.chance('word', { length: 45 })()}`;
 
 export const randomCID = () =>
   `bafy${factory.chance('word', { length: 55 })()}`;
@@ -16,12 +13,16 @@ export const randomCID = () =>
 export const getFactory = (dataSource: DataSource) => {
   if (factoryCached === null) {
     factory.setAdapter(new CustomTypeORMAdapter(dataSource));
-    factory.define('Space', Space, {
+    factory.define('Bucket', Bucket, {
       id: factory.sequence((n) => n),
       walletAddress: () => ethers.Wallet.createRandom().address.toLowerCase(),
-      did: randomDID,
-      proofBase64: factory.chance('word', { length: 160 }),
-      description: null,
+      dataProvider: factory.sequence((n) => `dataProvider${n}`),
+      bucketName: factory.sequence(
+        () =>
+          `dataprovder-${Math.random()
+            .toString(36)
+            .slice(2, 2 + 4)}`,
+      ),
       createdAt: '2021-09-01T12:46:25.241Z',
       updatedAt: '2021-09-01T12:46:25.241Z',
     });

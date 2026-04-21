@@ -22,11 +22,11 @@ import { UploadZipParamsDto } from './upload.dto';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5mb
 
-@Controller('w3up')
+@Controller('pin')
 export class UploadController {
   constructor(private uploadService: UploadService) {}
 
-  @Post('dir/:spaceOwnerAddress')
+  @Post('dir/:ownerAddress')
   @UseGuards(AuthGuard, OnlyValidatorGuard)
   @UseInterceptors(FileInterceptor('file'))
   async handleUploadZip(
@@ -53,7 +53,7 @@ export class UploadController {
     const authInfo: AuthInfo = {
       clientType: req.clientType,
       walletAddress: req.walletAddress.toLowerCase(),
-      spaceOwnerAddress: params.spaceOwnerAddress.toLowerCase(),
+      ownerAddress: params.ownerAddress.toLowerCase(),
     };
 
     return await this.uploadService.uploadZip(file.path, authInfo);

@@ -3,7 +3,7 @@ import { Request } from 'express';
 export interface AuthInfo {
   walletAddress: string;
   clientType: ClientType;
-  spaceOwnerAddress?: string;
+  ownerAddress?: string;
 }
 
 export interface ReqWithWallet extends Request, AuthInfo {}

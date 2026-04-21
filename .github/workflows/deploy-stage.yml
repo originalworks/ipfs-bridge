@@ -44,14 +44,4 @@ jobs:
       - name: "Deploy infrastructure to AWS"
         run: make deploy-stage
         working-directory: infrastructure
-    
-    #   - name: Create Sentry release
-    #     uses: getsentry/action-release@v3
-    #     env:
-    #       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-    #       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-    #       SENTRY_PROJECT: ${{ env.CRATE_NAME }}
-    #     with:
-    #       release: ${{ env.VERSION }}
-    #       release_prefix: "@"
         

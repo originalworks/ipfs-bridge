@@ -6,9 +6,9 @@ export function initSentry() {
     console.log('Setting up Sentry');
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
-      integrations: [nodeProfilingIntegration()],
+      // integrations: [nodeProfilingIntegration()],
       tracesSampleRate: 1.0,
-      profilesSampleRate: 1.0,
+      // profilesSampleRate: 1.0,
     });
   } else {
     console.log('SENTRY_DSN env is not set. Skipping sentry initialization');

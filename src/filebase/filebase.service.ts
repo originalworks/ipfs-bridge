@@ -14,7 +14,7 @@ import {
 import { PinoLoggerDecorator } from '../pinoLogger/logger';
 import path from 'path';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Bucket } from './filebase.entity';
+import { DataProvider } from './filebase.entity';
 import { Repository } from 'typeorm';
 import type { AuthInfo } from '../auth/auth.interface';
 import { Writable } from 'node:stream';
@@ -23,14 +23,17 @@ import { parse } from 'node:path';
 import { open } from 'fs/promises';
 import { UploadResponse } from './filebase.types';
 import { serializeError } from '../utils/serializeError';
+import { ConfigService } from '@nestjs/config';
+import { IConfig } from '../config/config';
 
 @Injectable()
 export class FilebaseService {
   private static readonly logger = new Logger(FilebaseService.name);
   constructor(
     protected filebaseS3Client: S3Client,
-    @InjectRepository(Bucket)
-    private bucketsRepo: Repository<Bucket>,
+    @InjectRepository(DataProvider)
+    private dataProvidersRepo: Repository<DataProvider>,
+    private readonly configService: ConfigService<IConfig>,
   ) {}
 
   private placeholderCID: ReturnType<
@@ -73,16 +76,16 @@ export class FilebaseService {
 
   @PinoLoggerDecorator(FilebaseService.logger)
   private async getOwnerBucket(authInfo: AuthInfo): Promise<string> {
-    const { walletAddress, ownerAddress } = authInfo;
+    const { walletAddress, dataProviderAddress } = authInfo;
 
     // Validators don't own their own storage
-    const lookupAddress = ownerAddress ?? walletAddress;
+    const lookupAddress = dataProviderAddress ?? walletAddress;
 
-    const bucket = await this.bucketsRepo.findOneBy({
+    const dataProvider = await this.dataProvidersRepo.findOneBy({
       walletAddress: lookupAddress,
     });
 
-    if (!bucket) {
+    if (!dataProvider) {
       const errorMsg = `No storage found for address ${lookupAddress}. If you should have one please contact admin@original.works`;
 
       FilebaseService.logger.error({
@@ -92,11 +95,11 @@ export class FilebaseService {
       throw new NotFoundException(errorMsg);
     }
 
-    FilebaseService.logger.log({ bucket });
+    FilebaseService.logger.log({ dataProvider });
 
     const bucketName = (
-      bucket.bucketName ??
-      `${bucket.dataProvider}-${Math.random()
+      dataProvider.bucketName ??
+      `${dataProvider.name}-${Math.random()
         .toString(36)
         .slice(2, 2 + 4)}`
     ).toLowerCase(); // 4 random letters
@@ -121,8 +124,8 @@ export class FilebaseService {
           );
           FilebaseService.logger.log(`Bucket created`);
 
-          if (!bucket.bucketName) {
-            await this.bucketsRepo.update(
+          if (!dataProvider.bucketName) {
+            await this.dataProvidersRepo.update(
               { walletAddress: lookupAddress },
               { bucketName },
             );
@@ -133,7 +136,7 @@ export class FilebaseService {
 
           FilebaseService.logger.error({
             errorMsg,
-            newEntry: !!bucket.bucketName,
+            newEntry: !!dataProvider.bucketName,
             bucketName,
             filebaseError: err.message,
           });
@@ -145,7 +148,7 @@ export class FilebaseService {
 
         FilebaseService.logger.error({
           errorMsg,
-          newEntry: !!bucket.bucketName,
+          newEntry: !!dataProvider.bucketName,
           bucketName,
           filebaseError: err.message,
         });
@@ -282,7 +285,7 @@ export class FilebaseService {
 
     return {
       cid,
-      url: `https://agreeable-gold-barnacle.myfilebase.com/${cid}`,
+      url: `${this.configService.get('IPFS_GATEWAY_URL')}/ipfs/${cid}`,
     };
   }
 }

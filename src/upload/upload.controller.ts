@@ -26,7 +26,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5mb
 export class UploadController {
   constructor(private uploadService: UploadService) {}
 
-  @Post('dir/:ownerAddress')
+  @Post('dir/:dataProviderAddress')
   @UseGuards(AuthGuard, OnlyValidatorGuard)
   @UseInterceptors(FileInterceptor('file'))
   async handleUploadZip(
@@ -53,7 +53,7 @@ export class UploadController {
     const authInfo: AuthInfo = {
       clientType: req.clientType,
       walletAddress: req.walletAddress.toLowerCase(),
-      ownerAddress: params.ownerAddress.toLowerCase(),
+      dataProviderAddress: params.dataProviderAddress.toLowerCase(),
     };
 
     return await this.uploadService.uploadZip(file.path, authInfo);

@@ -1,3 +1,3 @@
-import { Bucket } from '../filebase/filebase.entity';
+import { DataProvider } from '../filebase/filebase.entity';
 
-export const entities = [Bucket];
+export const entities = [DataProvider];

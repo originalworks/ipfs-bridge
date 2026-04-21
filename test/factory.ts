@@ -1,6 +1,6 @@
 import factory from 'factory-girl';
 import { DataSource } from 'typeorm';
-import { Bucket } from '../src/filebase/filebase.entity';
+import { DataProvider } from '../src/filebase/filebase.entity';
 import { ethers } from 'ethers';
 
 export type Factory = typeof factory;
@@ -13,10 +13,10 @@ export const randomCID = () =>
 export const getFactory = (dataSource: DataSource) => {
   if (factoryCached === null) {
     factory.setAdapter(new CustomTypeORMAdapter(dataSource));
-    factory.define('Bucket', Bucket, {
+    factory.define('DataProvider', DataProvider, {
       id: factory.sequence((n) => n),
       walletAddress: () => ethers.Wallet.createRandom().address.toLowerCase(),
-      dataProvider: factory.sequence((n) => `dataProvider${n}`),
+      name: factory.sequence((n) => `dataProvider${n}`),
       bucketName: factory.sequence(
         () =>
           `dataprovder-${Math.random()

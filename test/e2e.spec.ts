@@ -26,14 +26,14 @@ import {
   deleteAllBuckets,
 } from './s3Utils';
 import { UploadService } from '../src/upload/upload.service';
-import { Bucket as BucketEntity } from '../src/filebase/filebase.entity';
+import { DataProvider } from '../src/filebase/filebase.entity';
 
 describe('AppController', () => {
   let factory: Factory;
   let app: INestApplication;
   let dataSource: DataSource;
   let fixture: Awaited<ReturnType<typeof testFixture>>;
-  let bucketsRepo: Repository<BucketEntity>;
+  let dataProvidersRepo: Repository<DataProvider>;
   let uploadService: UploadService;
 
   const s3TestClient = new S3Client({
@@ -47,6 +47,7 @@ describe('AppController', () => {
   });
 
   const IPFS_BUCKET_NAME = 'ipfs-bucket';
+  const IPFS_GATEWAY_URL = 'https://www.onet.pl';
 
   const auth: { owen1?: string; owen2?: string; validator?: string } = {};
 
@@ -78,6 +79,7 @@ describe('AppController', () => {
               DDEX_SEQUENCER_ADDRESS: await fixture.sequencer.getAddress(),
               IPFS_BUCKET_NAME,
               BACKUP_TO_IPFS_NODE: true,
+              IPFS_GATEWAY_URL,
             }),
           ],
           isGlobal: true,
@@ -93,7 +95,7 @@ describe('AppController', () => {
 
     dataSource = module.get(DataSource);
     factory = getFactory(dataSource);
-    bucketsRepo = dataSource.getRepository(BucketEntity);
+    dataProvidersRepo = dataSource.getRepository(DataProvider);
     uploadService = module.get(UploadService);
     app = module.createNestApplication();
 
@@ -106,7 +108,7 @@ describe('AppController', () => {
 
     await app.init();
 
-    await factory.createMany<BucketEntity>(BucketEntity.name, [
+    await factory.createMany<DataProvider>(DataProvider.name, [
       {
         walletAddress: fixture.wallets.owen1.address.toLowerCase(),
       },
@@ -196,7 +198,7 @@ describe('AppController', () => {
           );
         });
 
-        it('Rejects when no ownerAddress added or not 0x address', async () => {
+        it('Rejects when no dataProviderAddress added or not 0x address', async () => {
           const file = join(__dirname, './test.zip');
 
           let res = await request(app.getHttpServer())
@@ -211,7 +213,7 @@ describe('AppController', () => {
             .expect(400);
 
           expect(res.text).toEqual(
-            `{"message":["ownerAddress must be an Ethereum address"],"error":"Bad Request","statusCode":400}`,
+            `{"message":["dataProviderAddress must be an Ethereum address"],"error":"Bad Request","statusCode":400}`,
           );
         });
 
@@ -267,7 +269,9 @@ describe('AppController', () => {
           expect(expectedCID).toEqual(res.body.cid);
 
           expect(res.body.url).toBeDefined();
-          expect(typeof res.body.url).toBe('string');
+          expect(res.body.url).toEqual(
+            `${IPFS_GATEWAY_URL}/ipfs/${expectedCID}`,
+          );
 
           fileExists = await existsInBucket(
             s3TestClient,
@@ -378,7 +382,9 @@ describe('AppController', () => {
           expect(expectedCID).toEqual(res.body.cid);
 
           expect(res.body.url).toBeDefined();
-          expect(typeof res.body.url).toBe('string');
+          expect(res.body.url).toEqual(
+            `${IPFS_GATEWAY_URL}/ipfs/${expectedCID}`,
+          );
 
           fileExists = await existsInBucket(
             s3TestClient,
@@ -422,8 +428,8 @@ describe('AppController', () => {
       });
 
       it('Creates new bucket for newly added data provider', async () => {
-        const [owen1, owen2] = await factory.createMany<BucketEntity>(
-          BucketEntity.name,
+        const [owen1, owen2] = await factory.createMany<DataProvider>(
+          DataProvider.name,
           [
             {
               walletAddress: fixture.wallets.owen1.address.toLowerCase(),
@@ -451,8 +457,8 @@ describe('AppController', () => {
           .attach('file', fileZip)
           .expect(201);
 
-        const owen1After = await bucketsRepo.findOneBy({ id: owen1.id });
-        const owen2After = await bucketsRepo.findOneBy({ id: owen2.id });
+        const owen1After = await dataProvidersRepo.findOneBy({ id: owen1.id });
+        const owen2After = await dataProvidersRepo.findOneBy({ id: owen2.id });
 
         expect(owen1After.bucketName).toBeDefined();
         expect(owen2After.bucketName).toBeDefined();
@@ -467,8 +473,8 @@ describe('AppController', () => {
       });
 
       it('Creates bucket when bucketName is set but not found in S3', async () => {
-        const [owen1, owen2] = await factory.createMany<BucketEntity>(
-          BucketEntity.name,
+        const [owen1, owen2] = await factory.createMany<DataProvider>(
+          DataProvider.name,
           [
             {
               walletAddress: fixture.wallets.owen1.address.toLowerCase(),

@@ -2,5 +2,5 @@ import { IsEthereumAddress } from 'class-validator';
 
 export class UploadZipParamsDto {
   @IsEthereumAddress()
-  ownerAddress: string;
+  dataProviderAddress: string;
 }

@@ -43,7 +43,7 @@ jobs:
             echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> $GITHUB_ENV
 
       - name: "Build zip"
-        run: make storacha-bridge.zip
+        run: make ipfs-bridge.zip
         working-directory: infrastructure
 
       - name: "Deploy infrastructure to AWS"

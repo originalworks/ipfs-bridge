@@ -38,7 +38,7 @@ jobs:
           role-duration-seconds: 1200
 
       - name: "Build zip"
-        run: make storacha-bridge.zip
+        run: make ipfs-bridge.zip
         working-directory: infrastructure
 
       - name: "Deploy infrastructure to AWS"

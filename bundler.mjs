@@ -12,7 +12,7 @@ function uploadSourceMapToSentry() {
   return [
     sentryEsbuildPlugin({
       org: 'original-works',
-      project: 'storacha-bridge',
+      project: 'ipfs-bridge',
       authToken: process.env.SENTRY_AUTH_TOKEN,
     }),
   ];
@@ -25,7 +25,7 @@ await esbuild.build({
   minify: false,
   platform: 'node',
   target: 'node22',
-  outdir: 'infrastructure/out/storacha-bridge',
+  outdir: 'infrastructure/out/ipfs-bridge',
   loader: {
     // ensures .node binaries are copied to ./dist
     '.node': 'copy',

@@ -4,7 +4,7 @@
 /build
 /test/temp
 /infrastructure/out
-/infrastructure/storacha-bridge.zip
+/infrastructure/ipfs-bridge.zip
 # Logs
 logs
 *.log

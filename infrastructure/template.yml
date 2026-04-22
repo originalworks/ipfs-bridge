@@ -8,7 +8,7 @@ Parameters:
     Type: String
   AutoPublishAlias:
     Type: String
-  StorachaBridgeDBName:
+  IpfsBridgeDBName:
     Type: String
   DbHost:
     Type: AWS::SSM::Parameter::Value<String>
@@ -20,6 +20,8 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
   IPFSStorageName:
     Type: AWS::SSM::Parameter::Value<String>
+  IpfsGatewayUrl:
+    Type: String
 
 Conditions:
   IsProd: !Equals [ !Ref Environment, "prod" ]
@@ -33,7 +35,7 @@ Globals:
       Variables:
         TEMP_PATH: /tmp
         ENVIRONMENT: !Ref Environment
-        SECRETS_PATH: !Sub ${Environment}/StorachaBridge
+        SECRETS_PATH: !Sub ${Environment}/IpfsBridge
         DDEX_SEQUENCER_ADDRESS: !Ref DdexSequencerAddress
         NO_COLOR: true
         DB_HOST: !Ref DbHost
@@ -49,12 +51,13 @@ Globals:
             - !Ref DbSecret
             - ":SecretString:password}}"
         DB_SYNCRONIZE: "false"
-        DB_DATABASE: !Ref StorachaBridgeDBName
+        DB_DATABASE: !Ref IpfsBridgeDBName
         IPFS_BUCKET_NAME: !Ref IPFSStorageName
         BACKUP_TO_IPFS_NODE: !If [ IsProd, "true", "false" ]
+        IPFS_GATEWAY_URL: !Ref IpfsGatewayUrl
 
 Resources:
-  StorachaBridgeRole:
+  IpfsBridgeRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -94,7 +97,7 @@ Resources:
   Api:
     Type: AWS::Serverless::Api
     Properties:
-      Name: StorachaBridge
+      Name: IpfsBridge
       StageName: !Ref Environment
       BinaryMediaTypes:
         - multipart/form-data
@@ -107,8 +110,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Tracing: Active
-      CodeUri: ./storacha-bridge.zip
-      Handler: out/storacha-bridge/lambdaEntrypoint.app
+      CodeUri: ./ipfs-bridge.zip
+      Handler: out/ipfs-bridge/lambdaEntrypoint.app
       MemorySize: 512
       AutoPublishAlias: !Ref AutoPublishAlias
       # ReservedConcurrentExecutions: 1
@@ -123,21 +126,21 @@ Resources:
             RestApiId: !Ref Api
             Path: /{whatever+}
             Method: ANY
-      Role: !GetAtt StorachaBridgeRole.Arn
+      Role: !GetAtt IpfsBridgeRole.Arn
 
   RunMigrations:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "CodeDeployHook_StorachaBridge-${Environment}-RunMigrations"
-      CodeUri: ./storacha-bridge.zip
-      Handler: out/storacha-bridge/lambdaEntrypoint.runMigrations
+      FunctionName: !Sub "CodeDeployHook_IpfsBridge-${Environment}-RunMigrations"
+      CodeUri: ./ipfs-bridge.zip
+      Handler: out/ipfs-bridge/lambdaEntrypoint.runMigrations
       Environment:
         Variables:
           ROOT_DB_NAME: !Ref RootDbName
           SETTINGS_DEF_MODE: !Ref Environment
       DeploymentPreference:
         Enabled: false
-      Role: !GetAtt StorachaBridgeRole.Arn
+      Role: !GetAtt IpfsBridgeRole.Arn
 
 Outputs:
   ApiUrl:

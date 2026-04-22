@@ -5,7 +5,7 @@ export const S3Factory = {
   useFactory: () => {
     let s3ClientConfig: S3ClientConfig;
 
-    if (process.env.ENV_TYPE === 'test' || process.env.ENVIRONMENT === 'test') {
+    if (process.env.ENVIRONMENT === 'test') {
       s3ClientConfig = {
         endpoint: 'http://localstack:4566',
         region: 'us-east-1',

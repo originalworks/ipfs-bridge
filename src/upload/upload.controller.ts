@@ -1,6 +1,7 @@
 import {
   Controller,
   FileTypeValidator,
+  InternalServerErrorException,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -22,11 +23,11 @@ import { UploadZipParamsDto } from './upload.dto';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5mb
 
-@Controller('w3up')
+@Controller('pin')
 export class UploadController {
   constructor(private uploadService: UploadService) {}
 
-  @Post('dir/:spaceOwnerAddress')
+  @Post('dir/:dataProviderAddress')
   @UseGuards(AuthGuard, OnlyValidatorGuard)
   @UseInterceptors(FileInterceptor('file'))
   async handleUploadZip(
@@ -53,7 +54,7 @@ export class UploadController {
     const authInfo: AuthInfo = {
       clientType: req.clientType,
       walletAddress: req.walletAddress.toLowerCase(),
-      spaceOwnerAddress: params.spaceOwnerAddress.toLowerCase(),
+      dataProviderAddress: params.dataProviderAddress.toLowerCase(),
     };
 
     return await this.uploadService.uploadZip(file.path, authInfo);
@@ -88,5 +89,10 @@ export class UploadController {
     };
 
     return await this.uploadService.uploadFile(file.path, authInfo);
+  }
+
+  @Post('error')
+  async handleThrowError() {
+    throw new InternalServerErrorException('Test error :)');
   }
 }

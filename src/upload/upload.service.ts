@@ -1,20 +1,20 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { mkdir, rm } from 'fs/promises';
 import { parse, join } from 'path';
-import { StorachaService } from '../storacha/storacha.service';
 import { PinoLoggerDecorator } from '../pinoLogger/logger';
 import AdmZip from 'adm-zip';
 import type { AuthInfo } from '../auth/auth.interface';
 import { S3Service } from '../s3/s3.service';
 import { ConfigService } from '@nestjs/config';
 import { IConfig } from '../config/config';
+import { FilebaseService } from '../filebase/filebase.service';
 
 @Injectable()
 export class UploadService {
   private static readonly logger = new Logger(UploadService.name);
 
   constructor(
-    private readonly storachaService: StorachaService,
+    private readonly filebaseService: FilebaseService,
     private readonly s3Service: S3Service,
     private readonly configService: ConfigService<IConfig>,
   ) {}
@@ -23,7 +23,7 @@ export class UploadService {
   async uploadZip(filepath: string, authInfo: AuthInfo) {
     try {
       const extractPath = await this.unzip(filepath);
-      const res = await this.storachaService.uploadZip(extractPath, authInfo);
+      const res = await this.filebaseService.upload(extractPath, authInfo);
 
       if (this.configService.get('BACKUP_TO_IPFS_NODE')) {
         await this.s3Service.uploadFile({
@@ -67,7 +67,7 @@ export class UploadService {
   @PinoLoggerDecorator(UploadService.logger)
   async uploadFile(filepath: string, authInfo: AuthInfo) {
     try {
-      const res = await this.storachaService.uploadFile(filepath, authInfo);
+      const res = await this.filebaseService.upload(filepath, authInfo);
 
       if (this.configService.get('BACKUP_TO_IPFS_NODE')) {
         await this.s3Service.uploadFile({

@@ -2,8 +2,8 @@
   "Parameters": {
     "Environment": "stage",
     "DdexSequencerAddress": "0x75AbeCf07C26368F0f4AA0b0d3637A732E25467e",
-    "AutoPublishAlias": "StageStorachaBridge",
-    "StorachaBridgeDBName": "stage-storacha-bridge",
+    "AutoPublishAlias": "StageIpfsBridge",
+    "IpfsBridgeDBName": "stage-ipfs-bridge",
     "RootDbName": "/ow/stage/db/name",
     "DbSecret": "/ow/stage/db/secret-arn",
     "DbHost": "/ow/stage/db/host",

@@ -2,12 +2,13 @@
     "Parameters": {
         "Environment": "prod",
         "DdexSequencerAddress": "0x88c430c91cbb608b41cdb2fce27604e12233233f",
-        "AutoPublishAlias": "ProdStorachaBridge",
-        "StorachaBridgeDBName": "prod-storacha-bridge",
+        "AutoPublishAlias": "ProdIpfsBridge",
+        "IpfsBridgeDBName": "prod-ipfs-bridge",
         "RootDbName": "/ow/stage/db/name",
         "DbSecret": "/ow/stage/db/secret-arn",
         "DbHost": "/ow/stage/db/host",
         "IPFSStorageArn": "/s3/bucket/arn/ipfs-backup-upload-bucket",
-        "IPFSStorageName": "/s3/bucket/name/ipfs-backup-upload-bucket"
+        "IPFSStorageName": "/s3/bucket/name/ipfs-backup-upload-bucket",
+        "IpfsGatewayUrl": "https://exotic-tan-emu.myfilebase.com"
     }
 }

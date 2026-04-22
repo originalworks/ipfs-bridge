@@ -1,4 +1,4 @@
-name: "Storacha Bridge tests"
+name: "IPFS Bridge tests"
 
 on: 
   pull_request:
@@ -6,7 +6,7 @@ on:
       - 'src/**'
 
 jobs:
-  storacha-bridge-tests:
+  ipfs-bridge-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 40
 

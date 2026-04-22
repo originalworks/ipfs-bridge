@@ -13,9 +13,9 @@ services:
     working_dir: /app
     environment:
       ENVIRONMENT: test
-      GANACHE_PRIMARY_MNEMONIC: someone token phrase mouse prison great priority cactus boost solid leave profit long bar door
-      GANACHE_PRIMARY_HOST: ganache
-      GANACHE_PORT: 8545
+      ANVIL_MNEMONIC: test test test test test test test test test test test junk
+      ANVIL_HOST: anvil
+      ANVIL_PORT: 8545
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: postgres
@@ -26,44 +26,20 @@ services:
     extends:
       service: base
     depends_on:
-      - ganache
+      - anvil
       - db
       - localstack
     command: "npm run test"
 
-  local:
-    extends:
-      service: base
-    depends_on:
-      - ganache
-      - db
-    ports:
-      - "3000:3000"
-    environment:
-      ENVIRONMENT: local
-      DDEX_SEQUENCER_ADDRESS: "0xF3976de8Bde0FeaAAf77A91aE41033A93D36fC21" # if deployment comes from fixture
-      TEMP_PATH: ./tmp
-      LOCAL_STORACHA_KEY: Your storacha private key goes here
-      LOCAL_OWEN_PROOF: Your proof for space for Owens
-      LOCAL_VALIDATOR_PROOF: Your proof for space for Validator1
-    command: >
-      sh -c "
-        echo '🛠 Building app...' &&
-        npm run build &&
-        echo '📂 Loading fixtures...' &&
-        npm run run-fixture &&
-        echo '📦 Running migrations...' &&
-        npm run migration:run &&
-        echo '🚀 Starting local app...' &&
-        npm run start:dev
-      "
-
-  ganache:
-    image: trufflesuite/ganache
-    command: >-
-      --wallet.mnemonic "someone token phrase mouse prison great priority cactus boost solid leave profit long bar door" 
-      --wallet.defaultBalance 1000000 
-      --chain.chainId 100
+  anvil:
+    image: ghcr.io/foundry-rs/foundry
+    entrypoint: anvil
+    command:
+      [
+        "--chain-id", "100",
+        "--balance", "1000000",
+        "--host", "0.0.0.0",
+      ]
   
   db:
     image: postgres:17.5

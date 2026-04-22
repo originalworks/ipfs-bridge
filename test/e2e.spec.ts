@@ -10,26 +10,30 @@ import { rm } from 'fs/promises';
 import { ClientType } from '../src/auth/auth.interface';
 import { testFixture } from './fixture';
 import { IConfig } from '../src/config/config';
-import { StorachaService } from '../src/storacha/storacha.service';
 import { Secrets } from '../src/awsSecrets/awsSecrets.module';
 import { ISecrets } from '../src/awsSecrets/awsSecrets.interface';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { testDbConfig } from '../src/config/dbConfig';
 import { UploadModule } from '../src/upload/upload.module';
 import { DataSource, Repository } from 'typeorm';
-import { Factory, getFactory, randomCID, randomDID } from './factory';
-import { Space } from '../src/storacha/storacha.entity';
+import { Factory, getFactory } from './factory';
 import { clearDatabase } from './typeorm.utils';
 import { S3Client } from '@aws-sdk/client-s3';
-import { recreateBucket, existsInBucket } from './s3Utils';
+import {
+  recreateBucket,
+  existsInBucket,
+  bucketExists,
+  deleteAllBuckets,
+} from './s3Utils';
 import { UploadService } from '../src/upload/upload.service';
+import { DataProvider } from '../src/filebase/filebase.entity';
 
 describe('AppController', () => {
   let factory: Factory;
   let app: INestApplication;
   let dataSource: DataSource;
   let fixture: Awaited<ReturnType<typeof testFixture>>;
-  let spacesRepo: Repository<Space>;
+  let dataProvidersRepo: Repository<DataProvider>;
   let uploadService: UploadService;
 
   const s3TestClient = new S3Client({
@@ -43,17 +47,9 @@ describe('AppController', () => {
   });
 
   const IPFS_BUCKET_NAME = 'ipfs-bucket';
+  const IPFS_GATEWAY_URL = 'https://www.onet.pl';
 
   const auth: { owen1?: string; owen2?: string; validator?: string } = {};
-
-  const storachaMock = {
-    uploadDirectory: jest.fn().mockResolvedValue({ toString: randomCID }),
-    uploadFile: jest.fn().mockResolvedValue({ toString: randomCID }),
-    addSpace: jest.fn().mockResolvedValue({ did: randomDID }),
-    setCurrentSpace: jest.fn(),
-  };
-
-  const proofParserMock = jest.fn().mockResolvedValue({ parse: jest.fn() });
 
   const TEMP_PATH = join(__dirname, 'temp');
 
@@ -83,6 +79,7 @@ describe('AppController', () => {
               DDEX_SEQUENCER_ADDRESS: await fixture.sequencer.getAddress(),
               IPFS_BUCKET_NAME,
               BACKUP_TO_IPFS_NODE: true,
+              IPFS_GATEWAY_URL,
             }),
           ],
           isGlobal: true,
@@ -93,17 +90,12 @@ describe('AppController', () => {
       .overrideProvider(Secrets)
       .useValue({
         RPC_URL: fixture.rpcUrl,
-        STORACHA_KEY: 'ABC',
       } as ISecrets)
       .compile();
 
-    const storachaService = module.get(StorachaService);
-    (storachaService as any)._client = storachaMock;
-    (storachaService as any).loadProofParser = proofParserMock;
-
     dataSource = module.get(DataSource);
     factory = getFactory(dataSource);
-    spacesRepo = dataSource.getRepository(Space);
+    dataProvidersRepo = dataSource.getRepository(DataProvider);
     uploadService = module.get(UploadService);
     app = module.createNestApplication();
 
@@ -116,7 +108,7 @@ describe('AppController', () => {
 
     await app.init();
 
-    await factory.createMany<Space>(Space.name, [
+    await factory.createMany<DataProvider>(DataProvider.name, [
       {
         walletAddress: fixture.wallets.owen1.address.toLowerCase(),
       },
@@ -135,11 +127,11 @@ describe('AppController', () => {
     await app.close();
   });
 
-  describe('Storacha Bridge', () => {
+  describe('IPFS Bridge', () => {
     describe('Auth', () => {
       it('Fails without authorization header', async () => {
         const res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .expect(401);
         expect(res.text).toEqual(
           `{"message":"Missing authorization header","error":"Unauthorized","statusCode":401}`,
@@ -148,7 +140,7 @@ describe('AppController', () => {
 
       it('Fails on malformed authorization header', async () => {
         let res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .set('authorization', 'HYDRAULIK::TOMASZ')
           .expect(401);
 
@@ -157,7 +149,7 @@ describe('AppController', () => {
         );
 
         res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .set('authorization', 'OWEN::TOMASZ')
           .expect(401);
 
@@ -168,7 +160,7 @@ describe('AppController', () => {
 
       it('Fails on whitelist', async () => {
         let res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .set(
             'authorization',
             await getAuth('OWEN', fixture.wallets.validator),
@@ -180,7 +172,7 @@ describe('AppController', () => {
         );
 
         res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .set(
             'authorization',
             await getAuth('VALIDATOR', fixture.wallets.owen1),
@@ -194,10 +186,10 @@ describe('AppController', () => {
     });
 
     describe('Upload controller', () => {
-      describe('/POST w3up/dir', () => {
+      describe('/POST pin/dir', () => {
         it('Rejects when no file attached', async () => {
           const res = await request(app.getHttpServer())
-            .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+            .post(`/pin/dir/${fixture.wallets.owen1.address}`)
             .set('authorization', auth.validator)
             .expect(400);
 
@@ -206,22 +198,22 @@ describe('AppController', () => {
           );
         });
 
-        it('Rejects when no spaceOwnerAddress added or not 0x address', async () => {
+        it('Rejects when no dataProviderAddress added or not 0x address', async () => {
           const file = join(__dirname, './test.zip');
 
           let res = await request(app.getHttpServer())
-            .post(`/w3up/dir`)
+            .post(`/pin/dir`)
             .set('authorization', auth.validator)
             .expect(404);
 
           res = await request(app.getHttpServer())
-            .post(`/w3up/dir/zenek-martyniuk`)
+            .post(`/pin/dir/zenek-martyniuk`)
             .set('authorization', auth.validator)
             .attach('file', file)
             .expect(400);
 
           expect(res.text).toEqual(
-            `{"message":["spaceOwnerAddress must be an Ethereum address"],"error":"Bad Request","statusCode":400}`,
+            `{"message":["dataProviderAddress must be an Ethereum address"],"error":"Bad Request","statusCode":400}`,
           );
         });
 
@@ -229,7 +221,7 @@ describe('AppController', () => {
           const file = join(__dirname, './test.jpeg');
 
           const res = await request(app.getHttpServer())
-            .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+            .post(`/pin/dir/${fixture.wallets.owen1.address}`)
             .set('authorization', auth.validator)
             .attach('file', file)
             .expect(400);
@@ -243,7 +235,7 @@ describe('AppController', () => {
           const file = join(__dirname, './test.zip');
 
           const res = await request(app.getHttpServer())
-            .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+            .post(`/pin/dir/${fixture.wallets.owen1.address}`)
             .set('authorization', auth.owen1)
             .attach('file', file)
             .expect(401);
@@ -255,11 +247,8 @@ describe('AppController', () => {
 
         it('Processes zip', async () => {
           const file = join(__dirname, './test.zip');
-          const expectedCID = randomCID();
-
-          storachaMock.uploadDirectory.mockResolvedValueOnce({
-            toString: () => expectedCID,
-          });
+          const expectedCID =
+            'bafybeibrqxxbs5wzbkic3mpao2o2jaxaznvvdt3upirev2r5frh3tgvekq'; //original cid of test.zip content
 
           let fileExists = await existsInBucket(
             s3TestClient,
@@ -270,7 +259,7 @@ describe('AppController', () => {
           expect(fileExists).toEqual(false);
 
           const res = await request(app.getHttpServer())
-            .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+            .post(`/pin/dir/${fixture.wallets.owen1.address}`)
             .set('authorization', auth.validator)
             .attach('file', file)
             .expect(201);
@@ -280,7 +269,9 @@ describe('AppController', () => {
           expect(expectedCID).toEqual(res.body.cid);
 
           expect(res.body.url).toBeDefined();
-          expect(typeof res.body.url).toBe('string');
+          expect(res.body.url).toEqual(
+            `${IPFS_GATEWAY_URL}/ipfs/${expectedCID}`,
+          );
 
           fileExists = await existsInBucket(
             s3TestClient,
@@ -291,10 +282,10 @@ describe('AppController', () => {
         });
       });
 
-      describe('/POST w3up/file', () => {
+      describe('/POST pin/file', () => {
         it('Rejects when no file attached', async () => {
           const res = await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.owen1)
             .expect(400);
 
@@ -307,7 +298,7 @@ describe('AppController', () => {
           const file = join(__dirname, './test.zip');
 
           const res = await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.owen1)
             .attach('file', file)
             .expect(400);
@@ -321,7 +312,7 @@ describe('AppController', () => {
           const file = join(__dirname, './test.jpeg');
 
           const res = await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.validator)
             .attach('file', file)
             .expect(401);
@@ -337,7 +328,7 @@ describe('AppController', () => {
           const uploadServiceSpy = jest.spyOn(uploadService, 'uploadFile');
 
           await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.owen1)
             .attach('file', file, {
               contentType: 'image/jpeg',
@@ -351,7 +342,7 @@ describe('AppController', () => {
 
           uploadServiceSpy.mockReset();
           await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.owen1)
             .attach('file', file, {
               contentType: 'image/unknownmime',
@@ -369,11 +360,8 @@ describe('AppController', () => {
         it('Processes file', async () => {
           const file = join(__dirname, './test.jpeg');
 
-          const expectedCID = randomCID();
-
-          storachaMock.uploadFile.mockResolvedValueOnce({
-            toString: () => expectedCID,
-          });
+          const expectedCID =
+            'bafkreihl4orpvb76fcdwot4msl6dhsglgqhy2mklbll5xyc5anywdk2blq'; //original cid of test.jpeg;
 
           let fileExists = await existsInBucket(
             s3TestClient,
@@ -384,7 +372,7 @@ describe('AppController', () => {
           expect(fileExists).toEqual(false);
 
           const res = await request(app.getHttpServer())
-            .post('/w3up/file')
+            .post('/pin/file')
             .set('authorization', auth.owen1)
             .attach('file', file)
             .expect(201);
@@ -394,7 +382,9 @@ describe('AppController', () => {
           expect(expectedCID).toEqual(res.body.cid);
 
           expect(res.body.url).toBeDefined();
-          expect(typeof res.body.url).toBe('string');
+          expect(res.body.url).toEqual(
+            `${IPFS_GATEWAY_URL}/ipfs/${expectedCID}`,
+          );
 
           fileExists = await existsInBucket(
             s3TestClient,
@@ -406,116 +396,114 @@ describe('AppController', () => {
       });
     });
 
-    describe('Spaces management', () => {
+    describe('Buckets management', () => {
       const file = join(__dirname, './test.jpeg');
       const fileZip = join(__dirname, './test.zip');
 
       beforeEach(async () => {
         await clearDatabase(dataSource);
+        await deleteAllBuckets(s3TestClient, [IPFS_BUCKET_NAME]);
       });
 
-      it('Throws when space has not been found', async () => {
+      it('Throws when data provider has not been set in db', async () => {
         let res = await request(app.getHttpServer())
-          .post('/w3up/file')
+          .post('/pin/file')
           .set('authorization', auth.owen1)
           .attach('file', file)
           .expect(404);
 
         expect(res.text).toEqual(
-          `{"message":"Storacha space not found for address ${fixture.wallets.owen1.address.toLowerCase()}. If you should have one please contact admin@original.works","error":"Not Found","statusCode":404}`,
+          `{"message":"No storage found for address ${fixture.wallets.owen1.address.toLowerCase()}. If you should have one please contact admin@original.works","error":"Not Found","statusCode":404}`,
         );
 
         res = await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen1.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen1.address}`)
           .set('authorization', auth.validator)
           .attach('file', fileZip)
           .expect(404);
 
         expect(res.text).toEqual(
-          `{"message":"Storacha space not found for address ${fixture.wallets.owen1.address.toLowerCase()}. If you should have one please contact admin@original.works","error":"Not Found","statusCode":404}`,
+          `{"message":"No storage found for address ${fixture.wallets.owen1.address.toLowerCase()}. If you should have one please contact admin@original.works","error":"Not Found","statusCode":404}`,
         );
       });
 
-      it('Sets did if proof is present but did is empty', async () => {
-        const [owen1Space, owen2Space] = await factory.createMany<Space>(
-          Space.name,
+      it('Creates new bucket for newly added data provider', async () => {
+        const [owen1, owen2] = await factory.createMany<DataProvider>(
+          DataProvider.name,
           [
             {
-              did: null,
               walletAddress: fixture.wallets.owen1.address.toLowerCase(),
+              bucketName: null,
             },
             {
-              did: null,
               walletAddress: fixture.wallets.owen2.address.toLowerCase(),
+              bucketName: null,
             },
           ],
         );
 
-        expect(owen1Space.did).toBeNull();
-
-        storachaMock.setCurrentSpace.mockRejectedValueOnce(new Error());
+        expect(owen1.bucketName).toBeNull();
+        expect(owen2.bucketName).toBeNull();
 
         await request(app.getHttpServer())
-          .post('/w3up/file')
+          .post('/pin/file')
           .set('authorization', auth.owen1)
           .attach('file', file)
           .expect(201);
 
-        const owenSpaceAfter = await spacesRepo.findOneBy({
-          walletAddress: fixture.wallets.owen1.address.toLowerCase(),
-        });
-
-        expect(owenSpaceAfter.did).toMatch(/did:key:.*/g);
-
-        expect(owen2Space.did).toBeNull();
-
-        storachaMock.setCurrentSpace.mockRejectedValueOnce(new Error());
-
         await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen2.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen2.address}`)
           .set('authorization', auth.validator)
           .attach('file', fileZip)
           .expect(201);
 
-        const owen2SpaceAfter = await spacesRepo.findOneBy({
-          walletAddress: fixture.wallets.owen2.address.toLowerCase(),
-        });
+        const owen1After = await dataProvidersRepo.findOneBy({ id: owen1.id });
+        const owen2After = await dataProvidersRepo.findOneBy({ id: owen2.id });
 
-        expect(owen2SpaceAfter.did).toMatch(/did:key:.*/g);
+        expect(owen1After.bucketName).toBeDefined();
+        expect(owen2After.bucketName).toBeDefined();
+
+        expect(
+          await bucketExists(s3TestClient, owen1After.bucketName),
+        ).toBeTruthy();
+
+        expect(
+          await bucketExists(s3TestClient, owen2After.bucketName),
+        ).toBeTruthy();
       });
 
-      it('Selects correct space', async () => {
-        const [owen1Space, owen2Space] = await factory.createMany<Space>(
-          Space.name,
+      it('Creates bucket when bucketName is set but not found in S3', async () => {
+        const [owen1, owen2] = await factory.createMany<DataProvider>(
+          DataProvider.name,
           [
             {
               walletAddress: fixture.wallets.owen1.address.toLowerCase(),
+              bucketName: 'eloszki',
             },
             {
               walletAddress: fixture.wallets.owen2.address.toLowerCase(),
+              bucketName: 'heheszki',
             },
           ],
         );
 
+        expect(await bucketExists(s3TestClient, owen1.bucketName)).toBeFalsy();
+        expect(await bucketExists(s3TestClient, owen2.bucketName)).toBeFalsy();
+
         await request(app.getHttpServer())
-          .post('/w3up/file')
+          .post('/pin/file')
           .set('authorization', auth.owen1)
           .attach('file', file)
           .expect(201);
 
-        expect(storachaMock.setCurrentSpace).toHaveBeenCalledWith(
-          owen1Space.did,
-        );
-
         await request(app.getHttpServer())
-          .post(`/w3up/dir/${fixture.wallets.owen2.address}`)
+          .post(`/pin/dir/${fixture.wallets.owen2.address}`)
           .set('authorization', auth.validator)
           .attach('file', fileZip)
           .expect(201);
 
-        expect(storachaMock.setCurrentSpace).toHaveBeenCalledWith(
-          owen2Space.did,
-        );
+        expect(await bucketExists(s3TestClient, owen1.bucketName)).toBeTruthy();
+        expect(await bucketExists(s3TestClient, owen2.bucketName)).toBeTruthy();
       });
     });
   });

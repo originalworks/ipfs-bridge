@@ -1,3 +1,4 @@
+import { IsLowercase } from 'class-validator';
 import {
   Column,
   CreateDateColumn,
@@ -6,8 +7,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'Spaces' })
-export class Space {
+@Entity({ name: 'DataProviders' })
+export class DataProvider {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -20,15 +21,11 @@ export class Space {
   @Column({
     nullable: true,
   })
-  did?: string;
+  @IsLowercase()
+  bucketName?: string;
 
-  @Column({
-    nullable: false,
-  })
-  proofBase64: string;
-
-  @Column({ nullable: true })
-  description?: string;
+  @Column({ nullable: false })
+  name: string;
 
   @CreateDateColumn()
   createdAt: Date;

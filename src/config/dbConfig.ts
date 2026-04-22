@@ -42,15 +42,3 @@ export const testDbConfig = (): DataSourceOptions => ({
   synchronize: true,
   dropSchema: true,
 });
-
-export const getLocalDbConfig = (): DataSourceOptions => ({
-  host: process.env.DB_HOST,
-  type: 'postgres',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE,
-  entities,
-  migrations: ['dist/migrations/*.js'],
-  synchronize: false,
-});

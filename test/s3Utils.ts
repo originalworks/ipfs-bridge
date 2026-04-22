@@ -6,6 +6,7 @@ import {
   HeadBucketCommand,
   HeadObjectCommand,
   DeleteBucketCommand,
+  ListBucketsCommand,
 } from '@aws-sdk/client-s3';
 
 export async function recreateBucket(s3: S3Client, bucketName: string) {
@@ -61,5 +62,67 @@ export async function existsInBucket(
   } catch (err: any) {
     if (err.name === 'NotFound') return false;
     throw err; // unexpected errors
+  }
+}
+
+export async function bucketExists(s3: S3Client, bucket: string) {
+  try {
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    return true;
+  } catch (err: any) {
+    if (err.name === 'NotFound') return false;
+    throw err; // unexpected errors
+  }
+}
+
+export async function deleteAllBuckets(
+  client: S3Client,
+  keepBuckets?: string[],
+) {
+  const { Buckets } = await client.send(new ListBucketsCommand({}));
+
+  if (!Buckets) return;
+
+  for (const bucket of Buckets) {
+    const name = bucket.Name;
+    if (!name) continue;
+
+    if (keepBuckets.includes(name)) {
+      continue;
+    }
+
+    let continuationToken: string | undefined;
+
+    do {
+      const list = await client.send(
+        new ListObjectsV2Command({
+          Bucket: name,
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      if (list.Contents && list.Contents.length > 0) {
+        await client.send(
+          new DeleteObjectsCommand({
+            Bucket: name,
+            Delete: {
+              Objects: list.Contents.map((obj) => ({
+                Key: obj.Key!,
+              })),
+            },
+          }),
+        );
+      }
+
+      continuationToken = list.IsTruncated
+        ? list.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+
+    await client.send(
+      new DeleteBucketCommand({
+        Bucket: name,
+      }),
+    );
   }
 }

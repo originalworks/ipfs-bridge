@@ -37,11 +37,6 @@ jobs:
           role-session-name: session-id-${{ github.run_id }}
           role-duration-seconds: 1200
 
-      - name: "Source Sentry config"
-        run: |
-            echo "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" >> $GITHUB_ENV
-            echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> $GITHUB_ENV
-
       - name: "Build zip"
         run: make ipfs-bridge.zip
         working-directory: infrastructure

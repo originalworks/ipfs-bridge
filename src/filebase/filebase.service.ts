@@ -221,15 +221,11 @@ export class FilebaseService {
     authInfo: AuthInfo,
   ): Promise<UploadResponse> {
     const bucketName = await this.getOwnerBucket(authInfo);
-    const {
-      carPath,
-      cid: computedCid,
-      carName,
-    } = await this.createCar(fileOrDirPath);
+    const { carPath, cid: computedCid } = await this.createCar(fileOrDirPath);
 
     const cmd = new PutObjectCommand({
       Bucket: bucketName,
-      Key: carName,
+      Key: computedCid,
       Body: createReadStream(carPath),
       Metadata: {
         import: 'car',

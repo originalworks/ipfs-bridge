@@ -20,6 +20,8 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
   IPFSStorageName:
     Type: AWS::SSM::Parameter::Value<String>
+  IpfsGatewayUrl:
+    Type: String
 
 Conditions:
   IsProd: !Equals [ !Ref Environment, "prod" ]
@@ -52,6 +54,7 @@ Globals:
         DB_DATABASE: !Ref IpfsBridgeDBName
         IPFS_BUCKET_NAME: !Ref IPFSStorageName
         BACKUP_TO_IPFS_NODE: !If [ IsProd, "true", "false" ]
+        IPFS_GATEWAY_URL: !Ref IpfsGatewayUrl
 
 Resources:
   IpfsBridgeRole:

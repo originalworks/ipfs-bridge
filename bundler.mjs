@@ -1,22 +1,5 @@
 import * as esbuild from 'esbuild';
 import esbuildPluginTsc from 'esbuild-plugin-tsc';
-import { sentryEsbuildPlugin } from '@sentry/esbuild-plugin';
-
-function uploadSourceMapToSentry() {
-  if (!process.env.SENTRY_AUTH_TOKEN) {
-    console.log(
-      'SENTRY_AUTH_TOKEN env var is not set! Skipping upload configuration',
-    );
-    return [];
-  }
-  return [
-    sentryEsbuildPlugin({
-      org: 'original-works',
-      project: 'ipfs-bridge',
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-    }),
-  ];
-}
 
 await esbuild.build({
   entryPoints: ['src/lambdaEntrypoint.ts'],
@@ -30,7 +13,7 @@ await esbuild.build({
     // ensures .node binaries are copied to ./dist
     '.node': 'copy',
   },
-  plugins: [esbuildPluginTsc(), ...uploadSourceMapToSentry()],
+  plugins: [esbuildPluginTsc()],
   external: [
     '@aws-sdk/*',
     '@nestjs/microservices',

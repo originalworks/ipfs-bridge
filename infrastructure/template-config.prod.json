@@ -9,6 +9,6 @@
         "DbHost": "/ow/stage/db/host",
         "IPFSStorageArn": "/s3/bucket/arn/ipfs-backup-upload-bucket",
         "IPFSStorageName": "/s3/bucket/name/ipfs-backup-upload-bucket",
-        "IpfsGatewayUrl": "https://exotic-tan-emu.myfilebase.com"
+        "IpfsGatewayUrl": "https://gateway.original.works"
     }
 }

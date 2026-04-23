@@ -90,9 +90,4 @@ export class UploadController {
 
     return await this.uploadService.uploadFile(file.path, authInfo);
   }
-
-  @Post('error')
-  async handleThrowError() {
-    throw new InternalServerErrorException('Test error :)');
-  }
 }

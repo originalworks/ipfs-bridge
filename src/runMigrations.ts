@@ -33,7 +33,7 @@ export const runMigrations = async (event) => {
   const codedeploy = new CodeDeployClient({ apiVersion: date });
 
   const dbConfig = getDbConfig();
-  console.log('dbconfig: ', dbConfig);
+  console.log('Running database migrations');
   const dataBaseName = dbConfig.database.toString();
   let dataSource: DataSource;
   let result: Partial<LifecycleEventStatus>;

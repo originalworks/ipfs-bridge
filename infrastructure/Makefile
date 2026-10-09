@@ -8,16 +8,16 @@ PARAMETERS_FILE=template-config.$(ENVIRONMENT).json
 PARAMETERS=$(shell jq -r '.Parameters | to_entries | map("\(.key)=\(.value)") | join(" ")' $(PARAMETERS_FILE))
 
 deploy-stage: ENVIRONMENT=stage
-deploy-stage: .deploy
+deploy-stage: $(ARTIFACT_NAME) .deploy
 
 deploy-prod: ENVIRONMENT=prod
-deploy-prod: .deploy
+deploy-prod: $(ARTIFACT_NAME) .deploy
 
 show-changeset-stage: ENVIRONMENT=stage
-show-changeset-stage: .show-changeset
+show-changeset-stage: $(ARTIFACT_NAME) .show-changeset
 
 show-changeset-prod: ENVIRONMENT=prod
-show-changeset-prod: .show-changeset
+show-changeset-prod: $(ARTIFACT_NAME) .show-changeset
 
 .deploy:
 	sam deploy --template-file $(TEMPLATE_FILE) --stack-name $(ENVIRONMENT)-$(STACK_NAME) --capabilities $(CAPABILITIES) --region $(REGION) --s3-bucket $(ARTIFACTS_BUCKET) --s3-prefix $(ENVIRONMENT) --parameter-overrides $(PARAMETERS) --no-fail-on-empty-changeset

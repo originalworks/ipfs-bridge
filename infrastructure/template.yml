@@ -16,6 +16,8 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
   RootDbName:
     Type: AWS::SSM::Parameter::Value<String>
+  VpcId:
+    Type: AWS::SSM::Parameter::Value<String>
   PrivateSubnetIds:
     Type: AWS::SSM::Parameter::Value<List<String>>
   DatabaseClientSecurityGroup:
@@ -44,6 +46,7 @@ Globals:
     VpcConfig:
       SecurityGroupIds:
         - !Ref DatabaseClientSecurityGroup
+        - !Ref IpfsBridgeLambdaEgressSecurityGroup
       SubnetIds: !Ref PrivateSubnetIds
     Environment:
       Variables:
@@ -71,6 +74,18 @@ Globals:
         IPFS_GATEWAY_URL: !Ref IpfsGatewayUrl
 
 Resources:
+  IpfsBridgeLambdaEgressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTPS egress for IPFS Bridge Lambda functions.
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - Description: HTTPS access through the NAT gateway.
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
   IpfsBridgeRole:
     Type: AWS::IAM::Role
     Properties:

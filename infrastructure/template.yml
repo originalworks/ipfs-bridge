@@ -16,6 +16,16 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
   RootDbName:
     Type: AWS::SSM::Parameter::Value<String>
+  PrivateSubnetIds:
+    Type: AWS::SSM::Parameter::Value<List<String>>
+  DatabaseClientSecurityGroup:
+    Type: AWS::SSM::Parameter::Value<String>
+  ApiDomainName:
+    Type: String
+  PublicHostedZoneId:
+    Type: AWS::SSM::Parameter::Value<String>
+  CertificateArn:
+    Type: AWS::SSM::Parameter::Value<String>
   IPFSStorageArn:
     Type: AWS::SSM::Parameter::Value<String>
   IPFSStorageName:
@@ -31,6 +41,10 @@ Globals:
     Runtime: "nodejs22.x"
     Timeout: 240
     MemorySize: 512
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref DatabaseClientSecurityGroup
+      SubnetIds: !Ref PrivateSubnetIds
     Environment:
       Variables:
         TEMP_PATH: /tmp
@@ -99,6 +113,14 @@ Resources:
     Properties:
       Name: IpfsBridge
       StageName: !Ref Environment
+      DisableExecuteApiEndpoint: false
+      Domain:
+        DomainName: !Ref ApiDomainName
+        CertificateArn: !Ref CertificateArn
+        EndpointConfiguration: REGIONAL
+        SecurityPolicy: TLS_1_2
+        Route53:
+          HostedZoneId: !Ref PublicHostedZoneId
       BinaryMediaTypes:
         - multipart/form-data
         - application/zip
@@ -142,7 +164,18 @@ Resources:
         Enabled: false
       Role: !GetAtt IpfsBridgeRole.Arn
 
+  IpfsBridgeApiDomainNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /protocol/prod/ipfs/bridge/api-domain-name
+      Type: String
+      Value: !Ref ApiDomainName
+      Description: Public custom domain name for the Protocol IPFS Bridge API.
+
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
+  CustomApiUrl:
+    Description: IPFS Bridge custom API Gateway endpoint URL.
+    Value: !Sub "https://${ApiDomainName}/"

@@ -57,7 +57,9 @@ export const runMigrations = async (event) => {
   } finally {
     console.log('finally run migrations');
 
-    await dataSource.destroy();
+    if (dataSource?.isInitialized) {
+      await dataSource.destroy();
+    }
 
     if (event.DeploymentId) {
       const command = new PutLifecycleEventHookExecutionStatusCommand({

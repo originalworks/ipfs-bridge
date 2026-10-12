@@ -62,11 +62,7 @@ Globals:
           - - "{{resolve:secretsmanager:"
             - !Ref DbSecret
             - ":SecretString:username}}"
-        DB_PASSWORD: !Join
-          - ""
-          - - "{{resolve:secretsmanager:"
-            - !Ref DbSecret
-            - ":SecretString:password}}"
+        DB_SECRET_ID: !Ref DbSecret
         DB_SYNCRONIZE: "false"
         DB_DATABASE: !Ref IpfsBridgeDBName
         IPFS_BUCKET_NAME: !Ref IPFSStorageName
@@ -111,7 +107,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Effect: Allow
                 Resource:
-                  - "*"
+                  - !Ref DbSecret
               - Action:
                   - codedeploy:*
                 Effect: Allow
